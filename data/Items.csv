@@ -1,0 +1,51 @@
+item_id,item_name,item_category,item_price,stock_quantity,item_brand,item_availability
+1,Television,Televisions and Displays,356.81,1009,JBL,true
+2,Laptop,Computers and Accessories,1851.32,493,HP,true
+3,Desktop,Computers and Accessories,1121.84,334,HP,true
+4,Smartphone,Mobile Devices and Accessories,965.2,201,Bose,true
+5,Tablet,,2739.61,190,Toshiba,true
+6,Printer,Printers and Office Equipment,4175.99,971,Sony,true
+7,Camera,Photography Equipment,2366.72,458,Microsoft,true
+8,Headphone,,3117.19,599,,true
+9,Speaker,Audio Equipment,4471.27,1360,Toshiba,true
+10,DVD Player,Video Players and Recorders,453.85,605,,true
+11,Blu-Ray Player,Video Players and Recorders,3382.86,704,ASUS,true
+12,Video Game Console,Gaming Equipment,689.61,753,Microsoft,true
+13,Video Game,,1890.03,681,Lenovo,true
+14,Smart Watch,Mobile Devices and Accessories,2007.43,742,Logitech,true
+15,Fitness Tracker,Mobile Devices and Accessories,2997.29,956,Apple,true
+16,Drone,,3949.97,850,Logitech,true
+17,Projector,Televisions and Displays,312.88,685,Canon,true
+18,Computer Monitor,Computers and Accessories,4076.35,1205,Bose,true
+19,Keyboard,Computers and Accessories,604.18,,Panasonic,false
+20,Mouse,Computers and Accessories,1333.04,881,Logitech,true
+21,External Hard Drive,Computers and Accessories,1251.36,1013,Microsoft,true
+22,USB Flash Drive,,1150.87,1251,Panasonic,true
+23,Micro SD Card,Storage Devices,3238.23,663,Sony,true
+24,Digital Picture Frame,Televisions and Displays,4449.99,443,Samsung,true
+25,Camcorder,Photography Equipment,860.01,870,Bose,true
+26,Action Camera,Photography Equipment,2694.25,,Bose,false
+27,Dash Camera,Photography Equipment,1283.99,550,Lenovo,true
+28,CCTV Camera,,695.71,,Sony,false
+29,Webcam,Printers and Office Equipment,4227.36,596,Dell,true
+30,Gaming Chair,Gaming Equipment,417.16,704,Samsung,true
+31,Wireless Charger,Mobile Devices and Accessories,241.54,951,Lenovo,true
+32,Portable Charger,Mobile Devices and Accessories,1523.27,192,HP,true
+33,Surge Protector,Printers and Office Equipment,488.39,800,ASUS,true
+34,HDMI Cable,Cables,1710.84,869,JBL,true
+35,Wi-Fi Router,Network Equipment,3812.53,14,Microsoft,true
+36,Modem,,3256.88,673,Bose,true
+37,Antivirus Software,Software,4186.62,,,false
+38,Office Software,Printers and Office Equipment,3454.82,643,JBL,true
+39,Power Strip,Printers and Office Equipment,3344.9,1211,HP,true
+40,Tripod,Photography Equipment,2055.66,1072,Nintendo,true
+41,VR Headset,,1905.01,1367,JBL,true
+42,Television,Televisions and Displays,479.19,670,Samsung,true
+43,Laptop,Computers and Accessories,4153.61,1018,Dell,true
+44,Desktop,Computers and Accessories,723.59,1119,JBL,true
+45,Smartphone,Mobile Devices and Accessories,3513.56,1162,Panasonic,true
+46,Tablet,Mobile Devices and Accessories,1606.65,267,HP,true
+47,Printer,Printers and Office Equipment,3704.16,239,Toshiba,true
+48,Camera,Photography Equipment,2039.08,471,Panasonic,true
+49,Headphone,Audio Equipment,1317.56,,Sony,false
+50,Speaker,Audio Equipment,4453.9,937,Logitech,true
