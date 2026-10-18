@@ -47,7 +47,7 @@ def show(fig_name: str) -> None:
 
 def load_data(data_dir: Path) -> Datasets:
     return Datasets(
-        items=pd.read_csv(data_dir / "items.csv"),
+        items=pd.read_csv(data_dir / "Items.csv"),
         customers=pd.read_csv(data_dir / "customers.csv"),
         orders=pd.read_csv(data_dir / "orders.csv"),
         order_item=pd.read_csv(data_dir / "order_item.csv"),
@@ -448,4 +448,4 @@ def main(data_dir: str = ".") -> None:
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else ".")
+    main(sys.argv[1] if len(sys.argv) > 1 else "data")
