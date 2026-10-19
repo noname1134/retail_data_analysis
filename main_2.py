@@ -13,6 +13,7 @@ from scipy import stats
 MISSING_THRESHOLD_PCT = 5.0
 
 DATA_DIR = Path("data")
+CHARTS_DIR = Path("charts")
 
 MANDATORY_COLUMNS = {
     "items": ["id", "item_name"],
@@ -33,6 +34,14 @@ class Datasets:
 def require_file(path: Path) -> None:
     if not path.is_file():
         raise FileNotFoundError(f"{path} not found.")
+
+
+def show(chart_name: str) -> None:
+    CHARTS_DIR.mkdir(exist_ok=True)
+    plt.tight_layout()
+    plt.savefig(CHARTS_DIR / f"{chart_name}.png", dpi=120)
+    plt.show()
+    plt.close("all")
 
 
 def default_value(s: pd.Series):
@@ -67,6 +76,17 @@ def fix_dependence_id(df: pd.DataFrame, dup_id_df: pd.DataFrame, dup_df_name: st
     df_fixed[df_id] = df_fixed[df_id].replace(id_mapping)
     return df_fixed
 
+
+def normalize_types(data: Datasets) -> Datasets:
+    customers_df = data.customers
+    customers_df["joining_date"] = pd.to_datetime(customers_df["joining_date"], errors="coerce")
+
+    return Datasets(
+        items=data.items,
+        customers=customers_df,
+        orders=data.orders,
+        order_item=data.order_item,
+    )
 
 
 def handle_duplicates(raw: Datasets) -> Datasets:
@@ -105,6 +125,52 @@ def handel_missing(df: pd.DataFrame, name: str) -> pd.DataFrame:
     return df
 
 
+def get_joining_by_year(customers_df: pd.DataFrame) -> pd.Series:
+    joining_by_year = customers_df.groupby(customers_df["joining_date"].dt.year).size()
+    joining_by_year.index = joining_by_year.index.astype(int)
+    return joining_by_year
+
+
+def customers_by_gender(customers_df: pd.DataFrame) -> None:
+    counts = customers_df["gender"].value_counts().rename_axis("gender").reset_index(name="amount_of_customers")
+    counts.plot.bar(x="gender", y="amount_of_customers", legend=False, color="steelblue")
+    plt.title("Customers by gender"); plt.ylabel("Amount of customers"); plt.xticks(rotation=45)
+    show("customers_by_gender")
+
+
+def age_distribution(customers: pd.DataFrame) -> None:
+    customers["age"].plot.hist(bins=20, edgecolor="black", color="seagreen")
+    plt.title("Customer age distribution"); plt.xlabel("Age")
+    show("customer_age_distribution")
+
+
+def get_best_joining_year(customers_df: pd.DataFrame) -> tuple:
+    joining_by_year = get_joining_by_year(customers_df)
+    top_year = joining_by_year.idxmax()
+    highest_count = joining_by_year.max()
+    return top_year, highest_count
+
+
+def find_yearly_joining_trend(customers_df: pd.DataFrame) -> str:
+    joining_by_year = get_joining_by_year(customers_df)
+    joining_by_year.plot.bar(x="year", y="amount_of_joining", legend=False, color="steelblue")
+    plt.title("Customers by year"); plt.xlabel("year"); plt.ylabel("Amount of customers"); plt.xticks(rotation=45)
+    show("customers_joining_by_year")
+
+    change = joining_by_year.pct_change().dropna()
+    if (change > 0).all():
+        return "Consistent Increase: Sign-ups grew steadily every single year."
+    elif (change < 0).all():
+        return "Consistent Decrease: Sign-ups dropped steadily every single year."
+    else:
+        return "Sporadic Pattern: The trajectory fluctuates year-by-year rather than moving in a single direction."
+
+
+def find_monthly_joining_trend(customers_df: pd.DataFrame) -> str:
+    monthly = customers_df.set_index("joining_date").resample("MS").size()
+
+
+
 def load_data(data_dir: Path) -> Datasets:
     items_path = data_dir / "Items.csv"
     customers_path = data_dir / "customers.csv"
@@ -127,18 +193,33 @@ def load_data(data_dir: Path) -> Datasets:
 
 def prepare_data(raw: Datasets) -> Datasets:
     data = Datasets(*(df.copy() for df in (raw.items, raw.customers, raw.orders, raw.order_item)))
+    data = normalize_types(data)
+    data = handle_duplicates(data)
     data = Datasets(
         items=handel_missing(data.items, "items"),
         customers=handel_missing(data.customers, "customers"),
         orders=handel_missing(data.orders, "orders"),
         order_item=handel_missing(data.order_item, "order_item")
     )
-    data = handle_duplicates(data)
+    return data
+
+def analyze_customers(customers_df: pd.DataFrame) -> None:
+    """
+    customers_by_gender(customers_df)
+    age_distribution(customers_df)
+    top_year, highest_count = get_best_joining_year(customers_df)
+    print(f"The best signup year was {int(top_year)} with {highest_count} signups!")
+    print("Year by year joining trajectory:\n"
+          f"{find_yearly_joining_trend(customers_df)}")
+    """
+    print(find_monthly_joining_trend(customers_df))
 
 
 def main(data_dir: Path):
     data = load_data(data_dir)
     data = prepare_data(data)
+    analyze_customers(data.customers)
+
 
 if __name__ == "__main__":
     main(Path(sys.argv[1]) if len(sys.argv) > 1 else DATA_DIR)
