@@ -8,6 +8,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from pandas import MultiIndex
 from scipy import stats
 
 MISSING_THRESHOLD_PCT = 5.0
@@ -47,8 +48,10 @@ def show(chart_name: str) -> None:
 def default_value(s: pd.Series):
     if pd.api.types.is_bool_dtype(s):
         return False
-    if pd.api.types.is_numeric_dtype(s) or pd.api.types.is_datetime64_any_dtype(s):
+    if pd.api.types.is_numeric_dtype(s):
         return -1
+    if pd.api.types.is_datetime64_any_dtype(s):
+        return np.nan
     return "Unknown"
 
 
@@ -112,7 +115,7 @@ def handle_duplicates(raw: Datasets) -> Datasets:
     return data
 
 
-def handel_missing(df: pd.DataFrame, name: str) -> pd.DataFrame:
+def handle_missing(df: pd.DataFrame, name: str) -> pd.DataFrame:
     df = df.dropna(subset=MANDATORY_COLUMNS[name]).copy()
     pct = df.isna().mean() * 100
 
@@ -166,8 +169,40 @@ def find_yearly_joining_trend(customers_df: pd.DataFrame) -> str:
         return "Sporadic Pattern: The trajectory fluctuates year-by-year rather than moving in a single direction."
 
 
-def find_monthly_joining_trend(customers_df: pd.DataFrame) -> str:
-    monthly = customers_df.set_index("joining_date").resample("MS").size()
+def find_monthly_joining_trend(customers_df: pd.DataFrame) -> None:
+    joining_df = pd.DataFrame(columns=["year", "month"])
+    joining_df["year"] = customers_df["joining_date"].dt.year
+    joining_df["month"] = customers_df["joining_date"].dt.month
+    join_by_month = joining_df.groupby(["year", "month"]).size()
+    join_per_year = joining_df.groupby(["year"]).size()
+    mean_join_per_year = join_per_year / 12
+
+    plot_df = join_by_month.reset_index(name='joins')
+    plot_df['date'] = plot_df["year"].astype(int).astype(str) + "-" + plot_df["month"].astype(int).astype(str)
+    plot_df['date'] = pd.to_datetime(plot_df['date'], format='%Y-%m')
+    plt.plot(plot_df['date'], plot_df['joins'], label="monthly joins", marker='o')
+    plt.xlabel("Timeline")
+    plt.ylabel("Joins")
+    plt.legend()
+    show("customers_join_by_month")
+
+    for month in range(1, 13,1):
+        print(f"month: {month}")
+        joined_month = join_by_month.xs(month, level=1)
+        good_performance_count = 0
+        for year in mean_join_per_year.index:
+            if float(joined_month.loc[year]) > float(mean_join_per_year.loc[year]):
+                good_performance_count += 1
+        if good_performance_count >= 3:
+            print(f"consistently sees a higher number of new customers.")
+
+        change = joined_month.pct_change().dropna()
+        if (change > 0).all():
+            print("Consistent Increase: Sign-ups grew steadily every single year.")
+        elif (change < 0).all():
+            print("Consistent Decrease: Sign-ups dropped steadily every single year.")
+        else:
+            print("Sporadic Pattern: The trajectory fluctuates year-by-year rather than moving in a single direction.")
 
 
 
@@ -196,10 +231,10 @@ def prepare_data(raw: Datasets) -> Datasets:
     data = normalize_types(data)
     data = handle_duplicates(data)
     data = Datasets(
-        items=handel_missing(data.items, "items"),
-        customers=handel_missing(data.customers, "customers"),
-        orders=handel_missing(data.orders, "orders"),
-        order_item=handel_missing(data.order_item, "order_item")
+        items=handle_missing(data.items, "items"),
+        customers=handle_missing(data.customers, "customers"),
+        orders=handle_missing(data.orders, "orders"),
+        order_item=handle_missing(data.order_item, "order_item")
     )
     return data
 
@@ -212,7 +247,7 @@ def analyze_customers(customers_df: pd.DataFrame) -> None:
     print("Year by year joining trajectory:\n"
           f"{find_yearly_joining_trend(customers_df)}")
     """
-    print(find_monthly_joining_trend(customers_df))
+    find_monthly_joining_trend(customers_df)
 
 
 def main(data_dir: Path):
