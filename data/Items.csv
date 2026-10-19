@@ -1,4 +1,4 @@
-item_id,item_name,item_category,item_price,stock_quantity,item_brand,item_availability
+id,item_name,item_category,item_price,stock_quantity,item_brand,item_availability
 1,Television,Televisions and Displays,356.81,1009,JBL,true
 2,Laptop,Computers and Accessories,1851.32,493,HP,true
 3,Desktop,Computers and Accessories,1121.84,334,HP,true
