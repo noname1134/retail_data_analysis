@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 import warnings
 from dataclasses import dataclass, replace
@@ -124,18 +125,23 @@ def remove_row_from_linked_df(removed_ids: list, linked_df: pd.DataFrame, id_col
 
 
 def remove_missing_threshold(df: pd.DataFrame, name: str, id_col: str) -> tuple:
+    removed_mand_missing_df = df[df[MANDATORY_COLUMNS[name]].isna().any(axis=1)].set_index(id_col)
+    removed_mand_missing_ids = removed_mand_missing_df.index.tolist()
     df = df.dropna(subset=MANDATORY_COLUMNS[name]).copy()
+
     pct = df.isna().mean() * 100
 
     cols_over_threshold = [c for c in df.columns if pct[c] > MISSING_THRESHOLD_PCT]
     cols_under_threshold = [c for c in df.columns if 0 < pct[c] <= MISSING_THRESHOLD_PCT]
-    removed_ids_df = df[df[cols_under_threshold].isna().any(axis=1)].set_index(id_col)
-    removed_ids = removed_ids_df.index.tolist()
+    removed_threshold_ids_df = df[df[cols_under_threshold].isna().any(axis=1)].set_index(id_col)
+    removed_threshold__ids = removed_threshold_ids_df.index.tolist()
     df = df.dropna(subset=cols_under_threshold)
 
     for col in cols_over_threshold:
         df[col] = df[col].fillna(default_value(df[col]))
-    return df, removed_ids
+
+    total_removed_ids = removed_mand_missing_ids + removed_threshold__ids
+    return df, total_removed_ids
 
 def handle_missing(data: Datasets) -> Datasets:
     items_df, items_removed_id = remove_missing_threshold(data.items, "items", "id")
@@ -144,8 +150,12 @@ def handle_missing(data: Datasets) -> Datasets:
     customers_df, customers_removed_id = remove_missing_threshold(data.customers, "customers", "id")
     orders_df = remove_row_from_linked_df(customers_removed_id, data.orders, "customer_id")
 
-    orders_df, _ = remove_missing_threshold(orders_df, "orders", "order_id")
-    order_item_df, _ = remove_missing_threshold(order_item_df, "order_item", "id")
+    orders_df, orders_removed_id = remove_missing_threshold(orders_df, "orders", "order_id")
+    order_item_df = remove_row_from_linked_df(orders_removed_id, order_item_df, "order_id")
+
+    order_item_df, order_item_removed_id = remove_missing_threshold(order_item_df, "order_item", "id")
+    orders_df = remove_row_from_linked_df(order_item_removed_id, orders_df, "order_id")
+
 
     data = Datasets(
         items=items_df,
@@ -294,6 +304,40 @@ def payment_method_by_customer(customers_df: pd.DataFrame) -> None:
     show("payment_method_by_customer")
 
 
+def add_total_price(items_df: pd.DataFrame, order_item_df: pd.DataFrame) -> None:
+    orders_df = pd.read_csv(DATA_DIR / "orders.csv")
+    merged_items = order_item_df.merge(items_df[['id', 'item_price']], left_on='item_id', right_on='id', how='left')
+    merged_items['line_total'] = merged_items['item_price'] * merged_items['quantity']
+    order_totals = merged_items.groupby('order_id')['line_total'].sum()
+    orders_df['total_price'] = orders_df['order_id'].map(order_totals).fillna(0.0)
+    orders_df.to_csv(DATA_DIR / "orders.csv", index=False)
+
+
+def analyze_total_price(orders_df: pd.DataFrame) -> tuple:
+    return orders_df["total_price"].idxmax(), orders_df["total_price"].idxmin(), orders_df["total_price"].mean()
+
+
+def delivery_time_by_items(orders_df: pd.DataFrame, order_item_df: pd.DataFrame) -> None:
+    order_quantity_df = order_item_df.groupby('order_id')['quantity'].sum().rename('total_quantity').reset_index()
+    merged = order_quantity_df.merge(orders_df[['order_id', 'delivery_days']], left_on='order_id', right_on='order_id', how='left')
+    clean_merged = merged.loc[merged['delivery_days'] >= 0]
+    plt.figure(figsize=(8, 5))
+    plt.scatter(clean_merged['total_quantity'], clean_merged['delivery_days'], alpha=0.4)
+    plt.xlabel('Items in order'); plt.ylabel('Delivery days'); plt.title('Delivery time vs. order size'); plt.grid(alpha=0.3); plt.tight_layout()
+    show("delivery_time_by_order_size")
+
+
+def no_order_customer(orders_df: pd.DataFrame, customers_df: pd.DataFrame) -> pd.DataFrame:
+    customers_no_order_df = customers_df[~customers_df["id"].isin(orders_df["customer_id"])]
+    return customers_no_order_df
+
+
+def least_ordered(order_item_df: pd.DataFrame, items_df: pd.DataFrame, n: int = 5) -> pd.DataFrame:
+    least_ordered_df = order_item_df.groupby('item_id')['quantity'].sum().rename('total_quantity').reset_index().sort_values('total_quantity', ascending=True).head(n)
+    least_ordered_item_df = items_df.loc[items_df["id"].isin(least_ordered_df["item_id"])]
+    return least_ordered_item_df.set_index("id").loc[least_ordered_df["item_id"]].reset_index()
+
+
 def load_data(data_dir: Path) -> Datasets:
     items_path = data_dir / "Items.csv"
     customers_path = data_dir / "customers.csv"
@@ -347,12 +391,35 @@ def analyze_orders(orders_df: pd.DataFrame, customers_df: pd.DataFrame) -> None:
     payment_method_by_customer(orders_df)
 
 
+def analyze_all_data(data: Datasets) -> None:
+    add_total_price(data.items, data.order_item)
+    raw_orders_df = pd.read_csv(DATA_DIR / "orders.csv")
+    orders_df = data.orders
+    price_lookup = raw_orders_df.set_index("order_id")["total_price"]
+    orders_df["total_price"] = orders_df["order_id"].map(price_lookup)
+    max_order_price, min_order_price, avg_order_price =  analyze_total_price(orders_df)
+    print(f"Max order price: {max_order_price}")
+    print(f"Min order price: {min_order_price}")
+    print(f"Avg order price: {avg_order_price:.2f}")
+
+    delivery_time_by_items(orders_df, data.order_item)
+    
+    customers_no_order_df = no_order_customer(orders_df, data.customers)
+    print("customers how never ordered")
+    print(customers_no_order_df.to_string())
+    print(f"Number of customers: {len(customers_no_order_df)}")
+    least_ordered_df = least_ordered(data.order_item, data.items)
+    print("least ordered items")
+    print(least_ordered_df.to_string())
+
+
 def main(data_dir: Path):
     data = load_data(data_dir)
     data = prepare_data(data)
-    #analyze_customers(data.customers)
-    #analyze_items(data.items)
-    #analyze_orders(data.orders, data.customers)
+    analyze_customers(data.customers)
+    analyze_items(data.items)
+    analyze_orders(data.orders, data.customers)
+    analyze_all_data(data)
 
 
 if __name__ == "__main__":
